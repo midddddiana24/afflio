@@ -20,6 +20,8 @@ type ClickRow = {
   is_unique: boolean;
   referrer: string | null;
   device_type: string | null;
+  country: string | null;
+  bot_score: number;
   clicked_at: string;
 };
 
@@ -36,6 +38,17 @@ export default function AnalyticsPage() {
   const [clicks, setClicks] = useState<ClickRow[]>([]);
   const [platformFilter, setPlatformFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+
+  function exportCsv() {
+    const campaignMap = new Map(campaigns.map((campaign) => [campaign.id, campaign]));
+    const rows = [["campaign", "slug", "clicked_at", "unique", "device", "country", "referrer", "bot_score"], ...clicks.map((click) => {
+      const campaign = campaignMap.get(click.campaign_id);
+      return [campaign?.title || "Untitled", campaign?.slug || "", click.clicked_at, String(click.is_unique), click.device_type || "unknown", click.country || "unknown", click.referrer || "direct", String(click.bot_score || 0)];
+    })];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a"); link.href = url; link.download = `afflio-clicks-${new Date().toISOString().slice(0, 10)}.csv`; link.click(); URL.revokeObjectURL(url);
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -144,6 +157,7 @@ export default function AnalyticsPage() {
               <h2>Campaign breakdown</h2>
             </div>
             <div className="campaign-toolbar">
+              <button className="btn btn-outline" onClick={exportCsv} type="button">Export CSV</button>
               <select
                 className="field-select campaign-toolbar__select"
                 onChange={(event) => setPlatformFilter(event.target.value)}
@@ -211,7 +225,7 @@ export default function AnalyticsPage() {
         .from("campaigns")
         .select("id, slug, title, platform_source, status, created_at")
         .order("created_at", { ascending: false }),
-      supabase.from("clicks").select("campaign_id, is_unique, referrer, device_type, clicked_at"),
+      supabase.from("clicks").select("campaign_id, is_unique, referrer, device_type, country, bot_score, clicked_at"),
     ]);
 
     const clickRows = (clicksResult.data as ClickRow[] | null) ?? [];

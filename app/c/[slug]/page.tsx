@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { RedirectBridge } from "@/components/RedirectBridge";
+import { PublicCampaign } from "@/components/PublicCampaign";
 import { validateDestinationUrl } from "@/lib/campaigns";
 import { takeRateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
@@ -16,7 +16,7 @@ async function getCampaign(slug: string) {
   const supabase = createClient();
   const { data } = await supabase
     .from("campaigns")
-    .select("id, title, caption, image_path, destination_url, status, platform_source")
+    .select("id, title, caption, image_path, destination_url, status, platform_source, campaign_hotspots(id, label, destination_url, platform_source, x_percent, y_percent, width_percent, height_percent, sort_order)")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -100,11 +100,10 @@ export default async function RedirectPage({ params }: Props) {
     );
   }
 
-  return (
-    <RedirectBridge
-      campaignId={campaign.id}
-      destinationUrl={destination.value}
-      slug={params.slug}
-    />
-  );
+  const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/campaign-images/${campaign.image_path}`;
+  const hotspots = [...(campaign.campaign_hotspots ?? [])].sort((a, b) => a.sort_order - b.sort_order);
+
+  return <PublicCampaign campaignId={campaign.id} caption={campaign.caption} destinationUrl={destination.value}
+    hotspots={hotspots} imageUrl={imageUrl} platform={campaign.platform_source ?? "affiliate"}
+    slug={params.slug} title={campaign.title ?? "Affiliate campaign"} />;
 }

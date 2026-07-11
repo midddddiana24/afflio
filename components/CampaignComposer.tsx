@@ -8,6 +8,8 @@ import {
   createStoragePath,
 } from "@/lib/campaigns";
 import type { Profile } from "@/lib/auth";
+import type { CampaignHotspotInput } from "@/lib/hotspots";
+import { HotspotEditor } from "@/components/HotspotEditor";
 
 type CampaignRow = {
   id: string;
@@ -19,6 +21,10 @@ type CampaignRow = {
   platform_source: string | null;
   status: string;
   created_at: string;
+  campaign_hotspots?: Array<{
+    id: string; label: string; destination_url: string; platform_source: string | null;
+    x_percent: number; y_percent: number; width_percent: number; height_percent: number; sort_order: number;
+  }>;
 };
 
 type ClickRow = {
@@ -51,6 +57,8 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
   const [destinationUrl, setDestinationUrl] = useState("");
   const [platformSource, setPlatformSource] = useState("tiktok");
   const [file, setFile] = useState<File | null>(null);
+  const [hotspots, setHotspots] = useState<CampaignHotspotInput[]>([]);
+  const [publishOnCreate, setPublishOnCreate] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -64,6 +72,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
   const [shareOpenId, setShareOpenId] = useState("");
   const [qrOpenId, setQrOpenId] = useState("");
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editHotspots, setEditHotspots] = useState<CampaignHotspotInput[]>([]);
   const [editForm, setEditForm] = useState({
     title: "",
     caption: "",
@@ -110,7 +119,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
 
     const { data: campaignRows, error: campaignError } = await supabase
       .from("campaigns")
-      .select("id, slug, title, caption, destination_url, image_path, platform_source, status, created_at")
+      .select("id, slug, title, caption, destination_url, image_path, platform_source, status, created_at, campaign_hotspots(id, label, destination_url, platform_source, x_percent, y_percent, width_percent, height_percent, sort_order)")
       .order("created_at", { ascending: false })
       .limit(24);
 
@@ -209,6 +218,8 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
         destinationUrl,
         platformSource,
         imagePath: uploadedPath,
+        hotspots,
+        publish: publishOnCreate,
       }),
     });
 
@@ -225,6 +236,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
     setDestinationUrl("");
     setPlatformSource("tiktok");
     setFile(null);
+    setHotspots([]);
     setSubmitting(false);
     setSuccess(`Campaign created. Test it at /c/${payload.campaign.slug}`);
     await loadCampaigns();
@@ -273,6 +285,11 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
     setEditingId(campaign.id);
     setManageOpenId("");
     setEditImageFile(null);
+    setEditHotspots([...(campaign.campaign_hotspots ?? [])].sort((a, b) => a.sort_order - b.sort_order).map((hotspot) => ({
+      id: hotspot.id, label: hotspot.label, destinationUrl: hotspot.destination_url,
+      platformSource: hotspot.platform_source || "other", xPercent: hotspot.x_percent,
+      yPercent: hotspot.y_percent, widthPercent: hotspot.width_percent, heightPercent: hotspot.height_percent,
+    })));
     setEditForm({
       title: campaign.title || "",
       caption: campaign.caption || "",
@@ -314,6 +331,13 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
           ? { imagePath: replacementImagePath, oldImagePath: existing.image_path }
           : {}),
       });
+
+      const hotspotResponse = await fetch("/api/campaigns/hotspots", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ campaignId: editingId, hotspots: editHotspots }),
+      });
+      const hotspotPayload = await hotspotResponse.json() as { error?: string };
+      if (!hotspotResponse.ok) throw new Error(hotspotPayload.error || "Failed to save hotspots.");
 
       setEditingId("");
       setEditImageFile(null);
@@ -367,6 +391,20 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
     } finally {
       setBusyId("");
     }
+  }
+
+  async function duplicateCampaign(campaign: CampaignCard) {
+    setBusyId(`${campaign.id}:duplicate`);
+    setManageOpenId("");
+    setError("");
+    const response = await fetch("/api/campaigns/duplicate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ campaignId: campaign.id }),
+    });
+    const payload = await response.json() as { error?: string };
+    if (!response.ok) setError(payload.error || "Failed to duplicate campaign.");
+    else { setSuccess("Campaign duplicated as a draft."); await loadCampaigns(); }
+    setBusyId("");
   }
 
   async function copyText(value: string, key: string) {
@@ -476,6 +514,23 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
             </div>
           </aside>
         </div>
+
+        {selectedFilePreview ? (
+          <div className="campaign-builder-step">
+            <div className="section-head">
+              <div>
+                <p className="app-topbar__eyebrow">Interactive image</p>
+                <h2>Add clickable product areas</h2>
+              </div>
+              <span className="badge badge--active">{hotspots.length} hotspot{hotspots.length === 1 ? "" : "s"}</span>
+            </div>
+            <HotspotEditor hotspots={hotspots} imageUrl={selectedFilePreview} onChange={setHotspots} />
+            <label className="campaign-publish-toggle">
+              <input checked={publishOnCreate} onChange={(event) => setPublishOnCreate(event.target.checked)} type="checkbox" />
+              <span><strong>Publish after creating</strong><small>Turn this off to save a private draft for review.</small></span>
+            </label>
+          </div>
+        ) : null}
       </section>
 
       <section className="app-card">
@@ -601,10 +656,17 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                           <button className="menu-item" onClick={() => startEdit(campaign)} type="button">
                             Edit details
                           </button>
+                          <button className="menu-item" disabled={busyId === `${campaign.id}:duplicate`} onClick={() => void duplicateCampaign(campaign)} type="button">
+                            Duplicate as draft
+                          </button>
                           <button className="menu-item" onClick={() => setQrOpenId((current) => (current === campaign.id ? "" : campaign.id))} type="button">
                             {qrOpenId === campaign.id ? "Hide QR code" : "Show QR code"}
                           </button>
-                          {campaign.status !== "paused" ? (
+                          {campaign.status === "draft" ? (
+                            <button className="menu-item" disabled={busyId === `${campaign.id}:active`} onClick={() => void changeStatus(campaign, "active")} type="button">
+                              Publish campaign
+                            </button>
+                          ) : campaign.status !== "paused" ? (
                             <button className="menu-item" disabled={busyId === `${campaign.id}:paused`} onClick={() => void changeStatus(campaign, "paused")} type="button">
                               Pause campaign
                             </button>
@@ -688,6 +750,11 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                           <img alt="Replacement preview" src={editImagePreview} />
                         </div>
                       ) : null}
+
+                      <div className="campaign-builder-step">
+                        <div><p className="app-topbar__eyebrow">Interactive image</p><h3>Edit clickable areas</h3></div>
+                        <HotspotEditor hotspots={editHotspots} imageUrl={editImagePreview || campaign.imageUrl} onChange={setEditHotspots} />
+                      </div>
 
                       <div className="campaign-card__actions">
                         <button className="btn btn-fill" disabled={savingEdit} type="submit">

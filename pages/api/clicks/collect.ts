@@ -17,10 +17,14 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed." });
   }
 
-  const { campaignId, slug } = req.body ?? {};
+  const { campaignId, slug, hotspotId } = req.body ?? {};
 
   if (typeof campaignId !== "string" || typeof slug !== "string") {
     return res.status(400).json({ error: "Campaign payload is invalid." });
+  }
+
+  if (hotspotId !== undefined && typeof hotspotId !== "string") {
+    return res.status(400).json({ error: "Hotspot payload is invalid." });
   }
 
   const headersAdapter = {
@@ -42,6 +46,25 @@ export default async function handler(
   }
 
   const supabase = createServiceRoleClient();
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select("id")
+    .eq("id", campaignId)
+    .eq("slug", slug)
+    .eq("status", "active")
+    .maybeSingle();
+  if (!campaign) return res.status(404).json({ error: "Campaign is unavailable." });
+
+  if (hotspotId) {
+    const { data: hotspot } = await supabase
+      .from("campaign_hotspots")
+      .select("id")
+      .eq("id", hotspotId)
+      .eq("campaign_id", campaignId)
+      .maybeSingle();
+    if (!hotspot) return res.status(400).json({ error: "Hotspot does not belong to this campaign." });
+  }
+
   const ipHash = hashIp(traffic.ip);
   const uniqueSince = new Date(Date.now() - UNIQUE_WINDOW_HOURS * 60 * 60 * 1000).toISOString();
 
@@ -62,6 +85,7 @@ export default async function handler(
 
   await supabase.from("clicks").insert({
     campaign_id: campaignId,
+    hotspot_id: hotspotId || null,
     referrer: sanitizeReferrer(traffic.referrer),
     user_agent: sanitizeUserAgent(traffic.userAgent),
     country: traffic.country,

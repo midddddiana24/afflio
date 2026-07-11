@@ -3,6 +3,7 @@ import { ensureDomainAllowed, requireActiveProfile } from "@/lib/account-state";
 import { createPagesServerClient } from "@/lib/supabase/pages-server";
 import { createCampaignSlug, validateCampaignInput } from "@/lib/campaigns";
 import { getEffectivePlanForUser } from "@/lib/plans";
+import { toHotspotRows, validateHotspots } from "@/lib/hotspots";
 
 type ApiResponse =
   | { error: string }
@@ -51,6 +52,16 @@ export default async function handler(
 
   if (!parsed.ok) {
     return res.status(400).json({ error: parsed.error });
+  }
+
+  const parsedHotspots = validateHotspots(req.body?.hotspots ?? []);
+  if (!parsedHotspots.ok) {
+    return res.status(400).json({ error: parsedHotspots.error });
+  }
+
+  for (const hotspot of parsedHotspots.value) {
+    const allowed = await ensureDomainAllowed(supabase, new URL(hotspot.destinationUrl).hostname);
+    if (!allowed) return res.status(403).json({ error: "A hotspot destination domain is blocked by AFFLIO admin." });
   }
 
   if (!parsed.value.imagePath.startsWith(`${user.id}/`)) {
@@ -108,13 +119,23 @@ export default async function handler(
       title: parsed.value.title,
       caption: parsed.value.caption,
       platform_source: parsed.value.platformSource,
-      status: "active",
+      status: req.body?.publish === true ? "active" : "draft",
     })
     .select("id, slug, title, caption, destination_url, image_path, platform_source, status, created_at")
     .single();
 
   if (error || !campaign) {
     return res.status(500).json({ error: error?.message || "Failed to create campaign." });
+  }
+
+  if (parsedHotspots.value.length) {
+    const { error: hotspotError } = await supabase
+      .from("campaign_hotspots")
+      .insert(toHotspotRows(campaign.id, parsedHotspots.value));
+    if (hotspotError) {
+      await supabase.from("campaigns").delete().eq("id", campaign.id).eq("user_id", user.id);
+      return res.status(500).json({ error: hotspotError.message || "Failed to save campaign hotspots." });
+    }
   }
 
   return res.status(201).json({ campaign });
