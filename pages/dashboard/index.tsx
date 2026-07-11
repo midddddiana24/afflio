@@ -7,25 +7,33 @@ import { AppShell } from "@/components/AppShell";
 import { createClient } from "@/lib/supabase/client";
 import { useSessionContext } from "@/lib/use-session-context";
 
+type CampaignSummary = {
+  id: string;
+  slug: string;
+  title: string | null;
+  image_path: string;
+  status: string;
+  totalClicks: number;
+  uniqueClicks: number;
+  publicUrl: string;
+  imageUrl: string;
+};
+
 type Summary = {
   totalCampaigns: number;
   activeCampaigns: number;
   totalClicks: number;
-  recentCampaigns: Array<{
-    id: string;
-    slug: string;
-    title: string | null;
-    status: string;
-    created_at: string;
-  }>;
+  uniqueClicks: number;
+  recentCampaigns: CampaignSummary[];
 };
 
 export default function DashboardHomePage() {
-  const { loading, profile } = useSessionContext();
+  const { loading, profile, error } = useSessionContext();
   const [summary, setSummary] = useState<Summary>({
     totalCampaigns: 0,
     activeCampaigns: 0,
     totalClicks: 0,
+    uniqueClicks: 0,
     recentCampaigns: [],
   });
 
@@ -37,38 +45,90 @@ export default function DashboardHomePage() {
     const supabase = createClient();
 
     async function load() {
-      const [
-        campaignsResult,
-        activeResult,
-        clicksResult,
-        recentResult,
-      ] = await Promise.all([
+      const [campaignsResult, activeResult, recentResult] = await Promise.all([
         supabase.from("campaigns").select("*", { count: "exact", head: true }),
         supabase
           .from("campaigns")
           .select("*", { count: "exact", head: true })
           .eq("status", "active"),
-        supabase.from("clicks").select("*", { count: "exact", head: true }),
         supabase
           .from("campaigns")
-          .select("id, slug, title, status, created_at")
+          .select("id, slug, title, image_path, status")
           .order("created_at", { ascending: false })
           .limit(5),
       ]);
 
+      const campaignIds = (recentResult.data ?? []).map((campaign) => campaign.id);
+      let clickRows: Array<{ campaign_id: string; is_unique: boolean }> = [];
+
+      if (campaignIds.length) {
+        const { data } = await supabase
+          .from("clicks")
+          .select("campaign_id, is_unique")
+          .in("campaign_id", campaignIds);
+
+        clickRows = data ?? [];
+      }
+
+      const { data: allClicks } = await supabase.from("clicks").select("campaign_id, is_unique");
+
+      const globalTotalClicks = allClicks?.length ?? 0;
+      const globalUniqueClicks = allClicks?.filter((click) => click.is_unique).length ?? 0;
+
+      const recentCampaigns = (recentResult.data ?? []).map((campaign) => {
+        const {
+          data: { publicUrl: imageUrl },
+        } = supabase.storage.from("campaign-images").getPublicUrl(campaign.image_path);
+
+        const campaignClicks = clickRows.filter((click) => click.campaign_id === campaign.id);
+
+        return {
+          ...campaign,
+          totalClicks: campaignClicks.length,
+          uniqueClicks: campaignClicks.filter((click) => click.is_unique).length,
+          publicUrl: `${window.location.origin}/c/${campaign.slug}`,
+          imageUrl,
+        };
+      });
+
       setSummary({
         totalCampaigns: campaignsResult.count ?? 0,
         activeCampaigns: activeResult.count ?? 0,
-        totalClicks: clicksResult.count ?? 0,
-        recentCampaigns: recentResult.data ?? [],
+        totalClicks: globalTotalClicks,
+        uniqueClicks: globalUniqueClicks,
+        recentCampaigns,
       });
     }
 
-    load();
+    void load();
   }, [profile]);
 
+  if (error) {
+    return (
+      <div className="app-shell">
+        <div className="app-main" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
+          <section className="app-card">
+            <p className="app-topbar__eyebrow">Dashboard loading error</p>
+            <h2>Unable to load your workspace</h2>
+            <p className="muted">{error}</p>
+          </section>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || !profile) {
-    return null;
+    return (
+      <div className="app-shell">
+        <div className="app-main" style={{ gridColumn: "1 / -1", padding: "2rem" }}>
+          <div className="skeleton-stats">
+            <div className="skeleton" />
+            <div className="skeleton" />
+            <div className="skeleton" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -79,21 +139,36 @@ export default function DashboardHomePage() {
       <AppShell
         area="dashboard"
         profile={profile}
-        subtitle="Protected overview wired to Supabase Auth, profiles, campaigns, and click analytics."
+        subtitle="See your campaign inventory, tracked clicks, and the latest public links in one place."
         title="Workspace overview"
       >
+        <section className="hero-panel">
+          <div className="hero-panel__copy">
+            <p className="app-topbar__eyebrow">Today</p>
+            <h2>Publish faster and see what is actually getting clicks.</h2>
+            <p className="muted">
+              AFFLIO now puts your latest campaign cards, click totals, and quick test links into one cleaner operating view instead of spreading them across multiple screens.
+            </p>
+          </div>
+          <div className="hero-panel__chips">
+            <span className="hero-chip">Campaigns {summary.totalCampaigns}</span>
+            <span className="hero-chip">Active {summary.activeCampaigns}</span>
+            <span className="hero-chip">Unique clicks {summary.uniqueClicks}</span>
+          </div>
+        </section>
+
         <section className="app-grid app-grid--stats">
-          <article className="app-card stat-card">
+          <article className="stat-card">
             <p className="stat-card__label">Total campaigns</p>
             <strong>{summary.totalCampaigns}</strong>
           </article>
-          <article className="app-card stat-card">
-            <p className="stat-card__label">Active campaigns</p>
-            <strong>{summary.activeCampaigns}</strong>
-          </article>
-          <article className="app-card stat-card">
+          <article className="stat-card">
             <p className="stat-card__label">Tracked clicks</p>
             <strong>{summary.totalClicks}</strong>
+          </article>
+          <article className="stat-card">
+            <p className="stat-card__label">Unique clicks</p>
+            <strong>{summary.uniqueClicks}</strong>
           </article>
         </section>
 
@@ -102,38 +177,62 @@ export default function DashboardHomePage() {
             <div className="section-head">
               <div>
                 <p className="app-topbar__eyebrow">Recent campaigns</p>
-                <h2>Latest cards</h2>
+                <h2>Latest tracked cards</h2>
               </div>
               <Link className="btn btn-outline" href="/dashboard/campaigns">
                 Open campaigns
               </Link>
             </div>
 
-            <div className="data-list">
-              {summary.recentCampaigns.length ? (
-                summary.recentCampaigns.map((campaign) => (
-                  <div className="data-list__row" key={campaign.id}>
-                    <div>
+            {summary.recentCampaigns.length ? (
+              <div className="campaign-mini-grid">
+                {summary.recentCampaigns.map((campaign) => (
+                  <article className="campaign-mini-card" key={campaign.id}>
+                    <div className="campaign-mini-card__image">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img alt={campaign.title || "Campaign image"} src={campaign.imageUrl} />
+                    </div>
+                    <div className="campaign-mini-card__body">
                       <strong>{campaign.title || "Untitled campaign"}</strong>
                       <p className="muted">/c/{campaign.slug}</p>
+                      <div className="campaign-mini-card__stats">
+                        <span>{campaign.totalClicks} total</span>
+                        <span>{campaign.uniqueClicks} unique</span>
+                      </div>
+                      <a className="btn btn-outline" href={campaign.publicUrl} rel="noreferrer" target="_blank">
+                        Test link
+                      </a>
                     </div>
-                    <span className={`badge badge--${campaign.status}`}>{campaign.status}</span>
-                  </div>
-                ))
-              ) : (
-                <p className="muted">No campaigns yet. The next backend step is the secure create flow.</p>
-              )}
-            </div>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-state__icon" aria-hidden="true">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <circle cx="8.5" cy="8.5" r="1.5" />
+                    <path d="M21 15l-5-5L5 21" />
+                  </svg>
+                </div>
+                <h3>No campaigns yet</h3>
+                <p>Upload a product photo and paste your affiliate link — your first trackable card takes about a minute.</p>
+                <Link className="btn btn-fill" href="/dashboard/campaigns">
+                  Create your first campaign
+                </Link>
+              </div>
+            )}
           </article>
 
           <article className="app-card">
-            <p className="app-topbar__eyebrow">Backend progress</p>
-            <h2>What is ready now</h2>
+            <p className="app-topbar__eyebrow">Platform status</p>
+            <h2>What is working now</h2>
             <ul className="feature-list">
-              <li>Supabase Auth login and signup flow</li>
-              <li>Protected client dashboard routes</li>
-              <li>Admin-aware navigation</li>
-              <li>Database-backed overview metrics</li>
+              <li>Authenticated campaign creation with Supabase Storage uploads</li>
+              <li>Public `/c/[slug]` tracked-link flow</li>
+              <li>Bot-aware click logging with unique-click tracking</li>
+              <li>Client and admin protected dashboard access</li>
+              <li>{summary.activeCampaigns} active campaigns currently published</li>
             </ul>
           </article>
         </section>

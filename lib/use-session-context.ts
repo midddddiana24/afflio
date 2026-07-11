@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import type { User } from "@supabase/supabase-js";
+import { loadProfile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/client";
 import type { Profile } from "@/lib/auth";
 
@@ -10,6 +11,7 @@ type SessionState = {
   loading: boolean;
   user: User | null;
   profile: Profile | null;
+  error: string;
 };
 
 export function useSessionContext(options?: { requireAdmin?: boolean }) {
@@ -18,41 +20,59 @@ export function useSessionContext(options?: { requireAdmin?: boolean }) {
     loading: true,
     user: null,
     profile: null,
+    error: "",
   });
 
   useEffect(() => {
     const supabase = createClient();
 
     async function load() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      try {
+        const {
+          data: { user },
+          error: userError,
+        } = await supabase.auth.getUser();
 
-      if (!user) {
-        const next = encodeURIComponent(router.asPath || "/dashboard");
-        router.replace(`/login?next=${next}`);
-        return;
+        if (userError) {
+          setState({
+            loading: false,
+            user: null,
+            profile: null,
+            error: userError.message,
+          });
+          return;
+        }
+
+        if (!user) {
+          const next = encodeURIComponent(router.asPath || "/dashboard");
+          router.replace(`/login?next=${next}`);
+          return;
+        }
+
+        const { profile, error } = await loadProfile(supabase, user.id);
+
+        if (options?.requireAdmin && profile?.role !== "admin") {
+          router.replace("/dashboard");
+          return;
+        }
+
+        setState({
+          loading: false,
+          user,
+          profile: profile ?? null,
+          error: error ?? "",
+        });
+      } catch (error) {
+        setState({
+          loading: false,
+          user: null,
+          profile: null,
+          error: error instanceof Error ? error.message : "Failed to load session context.",
+        });
       }
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id, display_name, role, token_balance, created_at")
-        .eq("id", user.id)
-        .single();
-
-      if (options?.requireAdmin && profile?.role !== "admin") {
-        router.replace("/dashboard");
-        return;
-      }
-
-      setState({
-        loading: false,
-        user,
-        profile: (profile as Profile | null) ?? null,
-      });
     }
 
-    load();
+    void load();
   }, [options?.requireAdmin, router]);
 
   return state;

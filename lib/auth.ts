@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { loadProfile } from "@/lib/profile";
 import { createClient } from "@/lib/supabase/server";
 
 export type Profile = {
@@ -7,6 +8,8 @@ export type Profile = {
   role: "client" | "admin";
   token_balance: number;
   created_at: string | null;
+  suspended_at?: string | null;
+  suspension_reason?: string | null;
 };
 
 export async function getSessionContext() {
@@ -19,16 +22,12 @@ export async function getSessionContext() {
     return { supabase, user: null, profile: null };
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("id, display_name, role, token_balance, created_at")
-    .eq("id", user.id)
-    .single();
+  const { profile } = await loadProfile(supabase, user.id);
 
   return {
     supabase,
     user,
-    profile: (profile as Profile | null) ?? null,
+    profile,
   };
 }
 

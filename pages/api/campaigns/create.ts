@@ -1,6 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from "next";
+import { ensureDomainAllowed, requireActiveProfile } from "@/lib/account-state";
 import { createPagesServerClient } from "@/lib/supabase/pages-server";
 import { createCampaignSlug, validateCampaignInput } from "@/lib/campaigns";
+import { getEffectivePlanForUser } from "@/lib/plans";
 
 type ApiResponse =
   | { error: string }
@@ -36,6 +38,11 @@ export default async function handler(
     return res.status(401).json({ error: "You must be logged in to create a campaign." });
   }
 
+  const activeProfile = await requireActiveProfile(supabase, user.id, res);
+  if (!activeProfile) {
+    return;
+  }
+
   if (!user.email_confirmed_at) {
     return res.status(403).json({ error: "Verify your email before publishing campaigns." });
   }
@@ -48,6 +55,27 @@ export default async function handler(
 
   if (!parsed.value.imagePath.startsWith(`${user.id}/`)) {
     return res.status(400).json({ error: "Uploaded image path is invalid for this user." });
+  }
+
+  const domainAllowed = await ensureDomainAllowed(supabase, parsed.value.destinationHostname);
+  if (!domainAllowed) {
+    return res.status(403).json({ error: "That destination domain is blocked by AFFLIO admin." });
+  }
+
+  const plan = await getEffectivePlanForUser(supabase, user.id);
+
+  if (plan) {
+    const { count: campaignCount } = await supabase
+      .from("campaigns")
+      .select("*", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .neq("status", "archived");
+
+    if ((campaignCount ?? 0) >= plan.campaign_limit) {
+      return res.status(403).json({
+        error: `Your ${plan.name} plan allows up to ${plan.campaign_limit} active or paused campaigns.`,
+      });
+    }
   }
 
   let slug = "";

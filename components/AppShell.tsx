@@ -24,6 +24,14 @@ const dashboardLinks = [
 
 const adminLinks = [
   { href: "/admin", label: "Overview" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/campaigns", label: "Campaigns" },
+  { href: "/admin/subscriptions", label: "Subscriptions" },
+  { href: "/admin/plans", label: "Plans" },
+  { href: "/admin/webhooks", label: "Webhooks" },
+  { href: "/admin/analytics", label: "Analytics" },
+  { href: "/admin/flags", label: "Flags" },
+  { href: "/admin/audit-logs", label: "Audit logs" },
   { href: "/dashboard", label: "Client view" },
 ];
 
@@ -32,6 +40,7 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
   const [loggingOut, setLoggingOut] = useState(false);
   const links = area === "admin" ? adminLinks : dashboardLinks;
   const displayName = profile?.display_name || "Afflio user";
+  const activeLabel = links.find((link) => router.pathname === link.href)?.label || title;
 
   async function handleLogout() {
     const supabase = createClient();
@@ -44,11 +53,18 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
     <div className="app-shell">
       <aside className="app-sidebar">
         <div className="app-sidebar__brand">
-          <Link className="wordmark" href={area === "admin" ? "/admin" : "/dashboard"}>
-            AFFLIO
-          </Link>
+          <div className="app-sidebar__brand-wrap">
+            <Link className="wordmark" href={area === "admin" ? "/admin" : "/dashboard"}>
+              AFFLIO
+            </Link>
+            <span className="app-sidebar__area">
+              {area === "admin" ? "Admin" : "Workspace"}
+            </span>
+          </div>
           <p className="muted">
-            {area === "admin" ? "Admin control room" : "Affiliate workspace"}
+            {area === "admin"
+              ? "Control subscriptions, users, and operations."
+              : "Manage campaign cards, sharing, and performance."}
           </p>
         </div>
 
@@ -73,10 +89,30 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
         </nav>
 
         <div className="app-sidebar__footer">
-          <p className="app-sidebar__name">{displayName}</p>
-          <p className="muted">
-            {profile?.role === "admin" ? "Administrator" : "Client account"}
-          </p>
+          {area === "dashboard" && profile && profile.token_balance <= 5 ? (
+            <div className="upgrade-nudge">
+              <span className="upgrade-nudge__label">Running low</span>
+              <p>
+                {profile.token_balance} credit{profile.token_balance === 1 ? "" : "s"} left — each
+                new campaign card uses one.
+              </p>
+              <div className="token-meter">
+                <div
+                  className="token-meter__fill"
+                  data-tone={profile.token_balance <= 2 ? "low" : undefined}
+                  style={{ width: `${Math.min(100, (profile.token_balance / 5) * 100)}%` }}
+                />
+              </div>
+              <Link href="/dashboard/billing">Top up credits &rarr;</Link>
+            </div>
+          ) : null}
+
+          <div className="app-sidebar__identity">
+            <p className="app-sidebar__name">{displayName}</p>
+            <p className="muted">
+              {profile?.role === "admin" ? "Administrator" : "Client account"}
+            </p>
+          </div>
           <button
             className="btn btn-outline app-logout"
             onClick={handleLogout}
@@ -89,16 +125,22 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
 
       <main className="app-main">
         <header className="app-topbar">
-          <div>
+          <div className="app-topbar__copy">
             <p className="app-topbar__eyebrow">
               {area === "admin" ? "Admin panel" : "Dashboard"}
             </p>
             <h1>{title}</h1>
             <p className="muted">{subtitle}</p>
           </div>
-          <div className="app-topbar__pill">
-            <span>Credits</span>
-            <strong>{profile?.token_balance ?? 0}</strong>
+          <div className="app-topbar__meta">
+            <div className="app-topbar__pill">
+              <span>Section</span>
+              <strong>{activeLabel}</strong>
+            </div>
+            <div className="app-topbar__pill">
+              <span>Credits</span>
+              <strong>{profile?.token_balance ?? 0}</strong>
+            </div>
           </div>
         </header>
 

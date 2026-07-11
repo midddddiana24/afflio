@@ -28,6 +28,10 @@ const FAQS = [
 function useScrollReveal() {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
+    if (typeof window === "undefined" || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
     const els = document.querySelectorAll<HTMLElement>("[data-reveal]");
     const io = new IntersectionObserver(
       (entries) => {

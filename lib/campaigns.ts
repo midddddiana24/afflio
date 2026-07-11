@@ -6,6 +6,7 @@ const generateSlug = customAlphabet(slugAlphabet, 7);
 export const IMAGE_UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
 export const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const blockedHosts = new Set(["localhost", "127.0.0.1", "0.0.0.0"]);
+const slugPattern = /^[23456789abcdefghjkmnpqrstuvwxyz-]{4,40}$/;
 
 export type CampaignInput = {
   title?: string;
@@ -45,6 +46,23 @@ type DestinationValidation =
 
 export function createCampaignSlug() {
   return generateSlug();
+}
+
+export function validateCustomSlug(value: string | undefined) {
+  const trimmed = value?.trim().toLowerCase();
+
+  if (!trimmed) {
+    return { valid: false as const, error: "Campaign slug is required." };
+  }
+
+  if (!slugPattern.test(trimmed)) {
+    return {
+      valid: false as const,
+      error: "Slug must be 4-40 chars and use only lowercase letters, numbers, or hyphens.",
+    };
+  }
+
+  return { valid: true as const, value: trimmed };
 }
 
 export function normalizeText(value: string | undefined, maxLength: number) {
