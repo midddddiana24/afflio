@@ -3,6 +3,7 @@ import { sanitizeReferrer, sanitizeUserAgent, hashIp } from "@/lib/clicks";
 import { takeRateLimit } from "@/lib/rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getTrafficContext } from "@/lib/traffic";
+import { getEffectivePlanForUser } from "@/lib/plans";
 
 type ApiResponse = { ok: true } | { error: string };
 
@@ -48,12 +49,18 @@ export default async function handler(
   const supabase = createServiceRoleClient();
   const { data: campaign } = await supabase
     .from("campaigns")
-    .select("id")
+    .select("id, user_id")
     .eq("id", campaignId)
     .eq("slug", slug)
     .eq("status", "active")
     .maybeSingle();
   if (!campaign) return res.status(404).json({ error: "Campaign is unavailable." });
+
+  const plan = await getEffectivePlanForUser(supabase, campaign.user_id);
+  if (plan?.monthly_click_limit) {
+    const { data: usage } = await supabase.rpc("user_monthly_click_count", { target_user_id: campaign.user_id });
+    if (Number(usage ?? 0) >= plan.monthly_click_limit) return res.status(202).json({ ok: true });
+  }
 
   if (hotspotId) {
     const { data: hotspot } = await supabase

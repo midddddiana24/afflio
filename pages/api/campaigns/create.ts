@@ -76,6 +76,9 @@ export default async function handler(
   const plan = await getEffectivePlanForUser(supabase, user.id);
 
   if (plan) {
+    if (parsedHotspots.value.length > plan.hotspot_limit) {
+      return res.status(403).json({ error: `${plan.name} allows up to ${plan.hotspot_limit} hotspot${plan.hotspot_limit === 1 ? "" : "s"} per campaign.` });
+    }
     const { count: campaignCount } = await supabase
       .from("campaigns")
       .select("*", { count: "exact", head: true })

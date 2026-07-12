@@ -2,6 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { requireActiveProfile, ensureDomainAllowed } from "@/lib/account-state";
 import { toHotspotRows, validateHotspots } from "@/lib/hotspots";
 import { createPagesServerClient } from "@/lib/supabase/pages-server";
+import { getEffectivePlanForUser } from "@/lib/plans";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "PUT") {
@@ -18,6 +19,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const parsed = validateHotspots(req.body?.hotspots);
   if (!campaignId || !parsed.ok) {
     return res.status(400).json({ error: parsed.ok ? "Campaign id is required." : parsed.error });
+  }
+
+  const plan = await getEffectivePlanForUser(supabase, user.id);
+  if (plan && parsed.value.length > plan.hotspot_limit) {
+    return res.status(403).json({ error: `${plan.name} allows up to ${plan.hotspot_limit} hotspots per campaign.` });
   }
 
   const { data: campaign } = await supabase

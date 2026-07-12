@@ -612,21 +612,17 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                   </div>
 
                   <div className="campaign-card__actions campaign-card__actions--compact">
-                    <a className="btn btn-fill" href={campaign.publicUrl} rel="noreferrer" target="_blank">
-                      Open tracked link
-                    </a>
-
                     <div className="menu-shell">
-                      <button className="btn btn-outline" onClick={() => setShareOpenId((current) => (current === campaign.id ? "" : campaign.id))} type="button">
+                      <button aria-expanded={shareOpenId === campaign.id} className="btn btn-fill campaign-share-primary" onClick={() => setShareOpenId((current) => (current === campaign.id ? "" : campaign.id))} type="button">
                         Share
                       </button>
                       {shareOpenId === campaign.id ? (
                         <div className="menu-popover">
+                          <button className="menu-item" onClick={() => void copyText(campaign.publicUrl, `copy-${campaign.id}`)} type="button">
+                            {copiedKey === `copy-${campaign.id}` ? "Link copied" : "Copy campaign link"}
+                          </button>
                           <button className="menu-item" onClick={() => void nativeShare(campaign)} type="button">
                             {copiedKey === `share-${campaign.id}` ? "Copied share text" : "Native share"}
-                          </button>
-                          <button className="menu-item" onClick={() => void copyText(campaign.publicUrl, `copy-${campaign.id}`)} type="button">
-                            {copiedKey === `copy-${campaign.id}` ? "Copied tracked link" : "Copy tracked link"}
                           </button>
                           <button className="menu-item" onClick={() => void copyText(buildShareText(campaign), `bio-${campaign.id}`)} type="button">
                             {copiedKey === `bio-${campaign.id}` ? "Copied TikTok text" : "Copy TikTok bio text"}
@@ -653,6 +649,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                       </button>
                       {manageOpenId === campaign.id ? (
                         <div className="menu-popover">
+                          <a className="menu-item" href={campaign.publicUrl} rel="noreferrer" target="_blank">Preview campaign</a>
                           <button className="menu-item" onClick={() => startEdit(campaign)} type="button">
                             Edit details
                           </button>
@@ -696,8 +693,8 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                       </div>
                       <div className="campaign-qr-panel__row">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img alt="Campaign QR code" className="campaign-qr-image" src={buildQrCodeUrl(campaign.publicUrl)} />
-                        <a className="btn btn-outline" href={buildQrCodeUrl(campaign.publicUrl)} rel="noreferrer" target="_blank">
+                        <img alt="Campaign QR code" className="campaign-qr-image" src={buildQrCodeUrl(campaign.id)} />
+                        <a className="btn btn-outline" href={buildQrCodeUrl(campaign.id)} rel="noreferrer" target="_blank">
                           Open QR image
                         </a>
                       </div>
@@ -838,6 +835,6 @@ function buildEmailShareUrl(campaign: CampaignCard) {
   return `mailto:?subject=${encodeURIComponent(campaign.title || "Afflio campaign")}&body=${encodeURIComponent(buildShareText(campaign))}`;
 }
 
-function buildQrCodeUrl(url: string) {
-  return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(url)}`;
+function buildQrCodeUrl(campaignId: string) {
+  return `/api/campaigns/qr?campaignId=${encodeURIComponent(campaignId)}`;
 }
