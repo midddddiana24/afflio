@@ -148,6 +148,8 @@ export function AuthForm({ mode }: AuthFormProps) {
             </span>
           </button>
 
+          {!isSignup ? <Link className="auth-secondary-link" href="/forgot-password">Forgot password?</Link> : null}
+
           <p className="auth-switch muted">
             {isSignup ? "Already have an account?" : "Need an account?"}{" "}
             <Link href={isSignup ? "/login" : "/signup"}>

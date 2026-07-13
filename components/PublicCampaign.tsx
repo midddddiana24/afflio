@@ -67,7 +67,7 @@ export function PublicCampaign(props: Props) {
           ) : <button className="btn btn-fill public-campaign__cta" onClick={() => follow(props.destinationUrl)} type="button">View product</button>}
         </div>
       </article>
-      <p className="public-campaign__footer">Links open on the merchant website. Powered by Afflio.</p>
+      <p className="public-campaign__footer">Links open on the merchant website. Powered by Afflio. <a href={`/report-abuse?url=${encodeURIComponent(`/c/${props.slug}`)}`}>Report campaign</a></p>
     </main>
   );
 }
