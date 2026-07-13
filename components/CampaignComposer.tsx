@@ -380,9 +380,9 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: campaign.id }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) {
-        throw new Error(payload.error || "Failed to delete campaign.");
+        throw new Error(payload?.error || `Failed to delete campaign (${response.status}).`);
       }
       setSuccess("Campaign deleted.");
       await loadCampaigns();
@@ -613,11 +613,11 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
 
                   <div className="campaign-card__actions campaign-card__actions--compact">
                     <div className="menu-shell">
-                      <button aria-expanded={shareOpenId === campaign.id} className="btn btn-fill campaign-share-primary" onClick={() => setShareOpenId((current) => (current === campaign.id ? "" : campaign.id))} type="button">
+                      <button aria-expanded={shareOpenId === campaign.id} className="btn btn-fill campaign-share-primary" onClick={() => { setManageOpenId(""); setShareOpenId((current) => (current === campaign.id ? "" : campaign.id)); }} type="button">
                         Share
                       </button>
                       {shareOpenId === campaign.id ? (
-                        <div className="menu-popover">
+                        <div aria-label="Share campaign" className="menu-popover" role="menu">
                           <button className="menu-item" onClick={() => void copyText(campaign.publicUrl, `copy-${campaign.id}`)} type="button">
                             {copiedKey === `copy-${campaign.id}` ? "Link copied" : "Copy campaign link"}
                           </button>
@@ -644,11 +644,11 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
                     </div>
 
                     <div className="menu-shell">
-                      <button className="btn btn-outline" onClick={() => setManageOpenId((current) => (current === campaign.id ? "" : campaign.id))} type="button">
+                      <button aria-expanded={manageOpenId === campaign.id} className="btn btn-outline" onClick={() => { setShareOpenId(""); setManageOpenId((current) => (current === campaign.id ? "" : campaign.id)); }} type="button">
                         Manage
                       </button>
                       {manageOpenId === campaign.id ? (
-                        <div className="menu-popover">
+                        <div aria-label="Manage campaign" className="menu-popover" role="menu">
                           <a className="menu-item" href={campaign.publicUrl} rel="noreferrer" target="_blank">Preview campaign</a>
                           <button className="menu-item" onClick={() => startEdit(campaign)} type="button">
                             Edit details
