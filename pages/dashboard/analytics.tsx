@@ -213,6 +213,7 @@ export default function AnalyticsPage() {
       supabase
         .from("campaigns")
         .select("id, slug, title, platform_source, status, created_at")
+        .eq("user_id", profile!.id)
         .order("created_at", { ascending: false }),
       supabase.from("clicks").select("campaign_id, is_unique, referrer, device_type, country, bot_score, clicked_at"),
     ]);

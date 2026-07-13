@@ -120,6 +120,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
     const { data: campaignRows, error: campaignError } = await supabase
       .from("campaigns")
       .select("id, slug, title, caption, destination_url, image_path, platform_source, status, created_at, campaign_hotspots(id, label, destination_url, platform_source, x_percent, y_percent, width_percent, height_percent, sort_order)")
+      .eq("user_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(24);
 

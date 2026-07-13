@@ -43,17 +43,20 @@ export default function DashboardHomePage() {
     }
 
     const supabase = createClient();
+    const profileId = profile.id;
 
     async function load() {
       const [campaignsResult, activeResult, recentResult] = await Promise.all([
-        supabase.from("campaigns").select("*", { count: "exact", head: true }),
+        supabase.from("campaigns").select("*", { count: "exact", head: true }).eq("user_id", profileId),
         supabase
           .from("campaigns")
           .select("*", { count: "exact", head: true })
+          .eq("user_id", profileId)
           .eq("status", "active"),
         supabase
           .from("campaigns")
           .select("id, slug, title, image_path, status")
+          .eq("user_id", profileId)
           .order("created_at", { ascending: false })
           .limit(5),
       ]);

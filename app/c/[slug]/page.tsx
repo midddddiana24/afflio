@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { PublicCampaign } from "@/components/PublicCampaign";
 import { validateDestinationUrl } from "@/lib/campaigns";
 import { takeRateLimit } from "@/lib/rate-limit";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getTrafficContext } from "@/lib/traffic";
 
 type Props = { params: { slug: string } };
@@ -13,7 +13,7 @@ type Props = { params: { slug: string } };
 export const dynamic = "force-dynamic";
 
 async function getCampaign(slug: string) {
-  const supabase = createClient();
+  const supabase = createServiceRoleClient();
   const { data } = await supabase
     .from("campaigns")
     .select("id, title, caption, image_path, destination_url, status, platform_source, campaign_hotspots(id, label, destination_url, platform_source, x_percent, y_percent, width_percent, height_percent, sort_order)")
