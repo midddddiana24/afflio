@@ -24,8 +24,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const campaign = campaignMap.get(click.campaign_id);
       return [campaign?.title || "Untitled", campaign?.slug || "", click.clicked_at, click.is_unique, click.device_type || "unknown", click.country || "unknown", click.referrer || "direct", click.bot_score];
     })];
-  const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  const csv = rows.map((row) => row.map(toCsvCell).join(",")).join("\n");
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="afflio-clicks-${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.setHeader("Cache-Control", "private, no-store");
   return res.status(200).send(csv);
+}
+
+function toCsvCell(cell: unknown) {
+  let value = String(cell ?? "");
+  if (/^[=+\-@\t\r]/.test(value)) value = `'${value}`;
+  return `"${value.replace(/"/g, '""')}"`;
 }

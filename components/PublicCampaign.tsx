@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 type Hotspot = {
   id: string;
   label: string;
@@ -35,7 +37,7 @@ export function PublicCampaign(props: Props) {
 
   return (
     <main className="public-campaign">
-      <header className="public-campaign__header"><a href="/" aria-label="Afflio home">AFFLIO</a><span>Interactive campaign</span></header>
+      <header className="public-campaign__header"><Link href="/" aria-label="Afflio home">AFFLIO</Link><span>Interactive campaign</span></header>
       <article className="public-campaign__card">
         <div className="public-campaign__image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -67,7 +69,7 @@ export function PublicCampaign(props: Props) {
           ) : <button className="btn btn-fill public-campaign__cta" onClick={() => follow(props.destinationUrl)} type="button">View product</button>}
         </div>
       </article>
-      <p className="public-campaign__footer">Links open on the merchant website. Powered by Afflio. <a href={`/report-abuse?url=${encodeURIComponent(`/c/${props.slug}`)}`}>Report campaign</a></p>
+      <p className="public-campaign__footer">Links open on the merchant website. Powered by Afflio. <Link href={`/report-abuse?url=${encodeURIComponent(`/c/${props.slug}`)}`}>Report campaign</Link></p>
     </main>
   );
 }

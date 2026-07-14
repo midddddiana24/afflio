@@ -36,7 +36,7 @@ afflio/
 3. Copy `.env.example` to `.env.local` and fill in those three values, plus your project ref (the part before `.supabase.co`) as `SUPABASE_PROJECT_ID`.
 
 ### 2. Run the migrations
-Easiest path: paste and run every file in `supabase/migrations` in numeric order (`0001` through `0009`) using Supabase Dashboard → SQL Editor → New query.
+Easiest path: paste and run every file in `supabase/migrations` in numeric order (`0001` through `0010`) using Supabase Dashboard → SQL Editor → New query.
 
 Or, if you have the Supabase CLI installed and linked to this project:
 ```bash

@@ -8,7 +8,7 @@ import { takeRateLimit } from "@/lib/rate-limit";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getTrafficContext } from "@/lib/traffic";
 
-type Props = { params: { slug: string } };
+type Props = { params: Promise<{ slug: string }> };
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,8 @@ async function getCampaign(slug: string) {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const campaign = await getCampaign(params.slug);
+  const { slug } = await params;
+  const campaign = await getCampaign(slug);
   if (!campaign) return { title: "Afflio" };
 
   const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/campaign-images/${campaign.image_path}`;
@@ -46,7 +47,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function RedirectPage({ params }: Props) {
-  const campaign = await getCampaign(params.slug);
+  const { slug } = await params;
+  const campaign = await getCampaign(slug);
 
   if (!campaign || campaign.status !== "active") {
     notFound();
@@ -58,8 +60,8 @@ export default async function RedirectPage({ params }: Props) {
     notFound();
   }
 
-  const traffic = getTrafficContext(headers());
-  const rateKey = `c-slug:${params.slug}:${traffic.ip ?? traffic.userAgent.slice(0, 60)}`;
+  const traffic = getTrafficContext(await headers());
+  const rateKey = `c-slug:${slug}:${traffic.ip ?? traffic.userAgent.slice(0, 60)}`;
   const rateLimit = takeRateLimit(rateKey, 20, 60_000);
 
   if (!rateLimit.allowed) {
@@ -105,5 +107,5 @@ export default async function RedirectPage({ params }: Props) {
 
   return <PublicCampaign campaignId={campaign.id} caption={campaign.caption} destinationUrl={destination.value}
     hotspots={hotspots} imageUrl={imageUrl} platform={campaign.platform_source ?? "affiliate"}
-    slug={params.slug} title={campaign.title ?? "Affiliate campaign"} />;
+    slug={slug} title={campaign.title ?? "Affiliate campaign"} />;
 }

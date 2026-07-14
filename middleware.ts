@@ -2,6 +2,14 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const isUnsafeApiRequest =
+    pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method);
+
+  if (isUnsafeApiRequest && !hasAllowedOrigin(request)) {
+    return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
+  }
+
   let response = NextResponse.next({
     request,
   });
@@ -36,7 +44,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { pathname, search } = request.nextUrl;
+  const { search } = request.nextUrl;
   const isProtectedRoute =
     pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
   const isGuestRoute = pathname === "/login" || pathname === "/signup";
@@ -56,6 +64,36 @@ export async function middleware(request: NextRequest) {
   }
 
   return response;
+}
+
+function hasAllowedOrigin(request: NextRequest) {
+  const origin = request.headers.get("origin");
+  if (!origin) return false;
+
+  const allowedOrigins = new Set<string>();
+  const configuredSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (configuredSiteUrl) {
+    try {
+      allowedOrigins.add(new URL(configuredSiteUrl).origin);
+    } catch {
+      return false;
+    }
+  }
+
+  if (
+    process.env.NODE_ENV !== "production" ||
+    request.nextUrl.hostname === "localhost" ||
+    request.nextUrl.hostname === "127.0.0.1"
+  ) {
+    allowedOrigins.add(request.nextUrl.origin);
+  }
+
+  try {
+    return allowedOrigins.has(new URL(origin).origin);
+  } catch {
+    return false;
+  }
 }
 
 export const config = {

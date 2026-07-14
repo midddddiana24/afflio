@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 const FAQS = [
   {
@@ -82,13 +83,13 @@ export default function LandingPage() {
             <a href="#faq">FAQ</a>
           </li>
         </ul>
-        <a
+        <Link
           className="btn btn-outline btn-outline-nav"
           href="/login"
           style={{ padding: "0.55rem 1rem" }}
         >
           Log in
-        </a>
+        </Link>
         <a className="btn btn-fill" href="#pricing">
           Start free
         </a>
@@ -121,9 +122,9 @@ export default function LandingPage() {
         <a href="#faq" onClick={() => setNavOpen(false)}>
           FAQ
         </a>
-        <a href="/login" onClick={() => setNavOpen(false)}>
+        <Link href="/login" onClick={() => setNavOpen(false)}>
           Log in
-        </a>
+        </Link>
       </div>
 
       <main id="top">
@@ -399,9 +400,9 @@ export default function LandingPage() {
                 <li>Basic click counter</li>
                 <li>Afflio-branded short links</li>
               </ul>
-              <a className="btn btn-outline" href="/signup">
+              <Link className="btn btn-outline" href="/signup">
                 Start free
-              </a>
+              </Link>
             </div>
             <div className="price-card is-featured" data-reveal>
               <h3>Creator</h3>
@@ -413,9 +414,9 @@ export default function LandingPage() {
                 <li>Click analytics by day + referrer</li>
                 <li>Custom captions per card</li>
               </ul>
-              <a className="btn btn-fill" href="/signup?plan=creator">
+              <Link className="btn btn-fill" href="/signup?plan=creator">
                 Buy tokens
-              </a>
+              </Link>
             </div>
             <div className="price-card" data-reveal>
               <h3>Agency</h3>
@@ -427,9 +428,9 @@ export default function LandingPage() {
                 <li>Up to 5 team members</li>
                 <li>Bulk upload from a spreadsheet</li>
               </ul>
-              <a className="btn btn-outline" href="/signup?plan=agency">
+              <Link className="btn btn-outline" href="/signup?plan=agency">
                 Buy tokens
-              </a>
+              </Link>
             </div>
           </div>
           <p className="price-fine">
@@ -464,9 +465,9 @@ export default function LandingPage() {
         <section className="cta-strip wrap">
           <div className="cta-strip-inner">
             <h2>Your next post could be a card.</h2>
-            <a className="btn btn-fill" href="/signup">
+            <Link className="btn btn-fill" href="/signup">
               Start free — takes 2 minutes
-            </a>
+            </Link>
           </div>
         </section>
       </main>
@@ -480,13 +481,13 @@ export default function LandingPage() {
           </p>
           <ul className="foot-links">
             <li>
-              <a href="/terms">Terms</a>
+              <Link href="/terms">Terms</Link>
             </li>
             <li>
-              <a href="/privacy">Privacy</a>
+              <Link href="/privacy">Privacy</Link>
             </li>
             <li>
-              <a href="/contact">Contact</a>
+              <Link href="/contact">Contact</Link>
             </li>
           </ul>
         </div>

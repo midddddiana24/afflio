@@ -146,6 +146,8 @@ export default function AnalyticsPage() {
               <h2>Campaign breakdown</h2>
             </div>
             <div className="campaign-toolbar">
+              {/* A normal anchor is required to trigger a file download response. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a className="btn btn-outline" href="/api/analytics/export">Export CSV</a>
               <select
                 className="field-select campaign-toolbar__select"

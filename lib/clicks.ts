@@ -1,11 +1,13 @@
-import { createHash } from "crypto";
+import { createHmac } from "crypto";
 
 export function hashIp(ip: string | null) {
-  if (!ip) {
+  const secret = process.env.CLICK_HASH_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!ip || !secret) {
     return null;
   }
 
-  return createHash("sha256").update(ip).digest("hex");
+  return createHmac("sha256", secret).update(ip).digest("hex");
 }
 
 export function sanitizeUserAgent(userAgent: string) {
