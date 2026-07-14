@@ -3,11 +3,18 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isProtectedRoute =
+    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
+  const isGuestRoute = pathname === "/login" || pathname === "/signup";
   const isUnsafeApiRequest =
     pathname.startsWith("/api/") && !["GET", "HEAD", "OPTIONS"].includes(request.method);
 
   if (isUnsafeApiRequest && !hasAllowedOrigin(request)) {
     return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
+  }
+
+  if (!isProtectedRoute && !isGuestRoute) {
+    return NextResponse.next();
   }
 
   let response = NextResponse.next({
@@ -45,10 +52,6 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { search } = request.nextUrl;
-  const isProtectedRoute =
-    pathname.startsWith("/dashboard") || pathname.startsWith("/admin");
-  const isGuestRoute = pathname === "/login" || pathname === "/signup";
-
   if (isProtectedRoute && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
@@ -97,5 +100,11 @@ function hasAllowedOrigin(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/dashboard/:path*",
+    "/admin/:path*",
+    "/login",
+    "/signup",
+    "/api/:path*",
+  ],
 };

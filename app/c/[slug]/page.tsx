@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { PublicCampaign } from "@/components/PublicCampaign";
 import { validateDestinationUrl } from "@/lib/campaigns";
 import { takeRateLimit } from "@/lib/rate-limit";
@@ -12,7 +13,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export const dynamic = "force-dynamic";
 
-async function getCampaign(slug: string) {
+const getCampaign = cache(async (slug: string) => {
   const supabase = createServiceRoleClient();
   const { data } = await supabase
     .from("campaigns")
@@ -21,6 +22,16 @@ async function getCampaign(slug: string) {
     .maybeSingle();
 
   return data;
+});
+
+function getSiteUrl() {
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelUrl =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+
+  return new URL(
+    configuredUrl ?? (vercelUrl ? `https://${vercelUrl}` : "http://localhost:3000")
+  );
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -28,20 +39,31 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const campaign = await getCampaign(slug);
   if (!campaign) return { title: "Afflio" };
 
+  const title = campaign.title?.trim() || "Affiliate campaign";
+  const description =
+    campaign.caption?.trim() ||
+    `View ${title} on Afflio and continue to the affiliate offer.`;
+  const canonicalUrl = new URL(`/c/${encodeURIComponent(slug)}`, getSiteUrl());
   const imageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/campaign-images/${campaign.image_path}`;
 
   return {
-    title: campaign.title ?? "Afflio",
-    description: campaign.caption ?? undefined,
+    title,
+    description,
+    alternates: { canonical: canonicalUrl },
     openGraph: {
-      title: campaign.title ?? "Afflio",
-      description: campaign.caption ?? undefined,
-      images: [{ url: imageUrl, width: 1200, height: 630 }],
+      type: "website",
+      url: canonicalUrl,
+      siteName: "Afflio",
+      locale: "en_PH",
+      title,
+      description,
+      images: [{ url: imageUrl, alt: title }],
     },
     twitter: {
       card: "summary_large_image",
-      title: campaign.title ?? "Afflio",
-      images: [imageUrl],
+      title,
+      description,
+      images: [{ url: imageUrl, alt: title }],
     },
   };
 }
