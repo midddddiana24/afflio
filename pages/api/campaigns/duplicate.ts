@@ -3,6 +3,7 @@ import { requireActiveProfile } from "@/lib/account-state";
 import { createCampaignSlug } from "@/lib/campaigns";
 import { getEffectivePlanForUser } from "@/lib/plans";
 import { createPagesServerClient } from "@/lib/supabase/pages-server";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -28,7 +29,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
   }
 
-  const { data: duplicate, error } = await supabase.from("campaigns").insert({
+  const admin = createServiceRoleClient();
+  const duplicateId = crypto.randomUUID();
+  const { data: duplicate, error } = await admin.from("campaigns").insert({
+    id: duplicateId,
     user_id: user.id,
     slug: createCampaignSlug(),
     image_path: source.image_path,
@@ -43,10 +47,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const { data: hotspots } = await supabase.from("campaign_hotspots").select("*")
     .eq("campaign_id", source.id).order("sort_order");
   if (hotspots?.length) {
-    await supabase.from("campaign_hotspots").insert(hotspots.map(({ id: _id, created_at: _createdAt, ...hotspot }) => ({
+    const { error: hotspotError } = await admin.from("campaign_hotspots").insert(hotspots.map(({ id: _id, created_at: _createdAt, ...hotspot }) => ({
       ...hotspot,
       campaign_id: duplicate.id,
     })));
+    if (hotspotError) {
+      await admin.from("campaigns").delete().eq("id", duplicate.id);
+      return res.status(500).json({ error: "Unable to duplicate campaign hotspots." });
+    }
   }
-  return res.status(201).json({ campaign: duplicate });
+  const { data: remainingCredits, error: creditError } = await admin.rpc("consume_campaign_credit", {
+    p_user_id: user.id,
+    p_campaign_id: duplicate.id,
+  });
+  if (creditError) {
+    await admin.from("campaigns").delete().eq("id", duplicate.id);
+    return res.status(402).json({ error: "You need at least 1 credit to duplicate a campaign." });
+  }
+  return res.status(201).json({ campaign: duplicate, remainingCredits: Number(remainingCredits) });
 }

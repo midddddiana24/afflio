@@ -178,6 +178,13 @@ img, svg { max-width: 100%; display: block; }
 
 .muted { color: var(--color-muted); }
 
+.referral-hero { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, .9fr); gap: 1.25rem; align-items: center; }
+.referral-hero h2 { margin: .35rem 0 .55rem; }
+.referral-link-box { display: grid; gap: .75rem; min-width: 0; padding: 1rem; border: 1px solid var(--color-rule); border-radius: 12px; background: var(--color-paper-2); }
+.referral-link-box code { overflow: hidden; padding: .75rem; border-radius: 8px; background: #fff; font-size: .78rem; text-overflow: ellipsis; white-space: nowrap; }
+.credit-positive { color: var(--color-success); }
+@media (max-width: 760px) { .referral-hero { grid-template-columns: 1fr; }.referral-link-box .campaign-card__actions { display: grid; grid-template-columns: 1fr 1fr; }.referral-link-box .btn { width: 100%; } }
+
 /* ============ FOCUS ============ */
 :focus { outline: none; }
 :focus-visible {

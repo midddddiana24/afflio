@@ -25,6 +25,7 @@ const dashboardLinks: AppNavLink[] = [
   { href: "/dashboard", label: "Overview", icon: "home" },
   { href: "/dashboard/campaigns", label: "Campaigns", icon: "campaign" },
   { href: "/dashboard/analytics", label: "Analytics", icon: "analytics" },
+  { href: "/dashboard/referrals", label: "Refer friends", icon: "gift" },
   { href: "/dashboard/billing", label: "Billing", icon: "billing" },
   { href: "/dashboard/settings", label: "Settings", icon: "settings" },
 ];
@@ -47,6 +48,7 @@ function NavIcon({ name }: { name: string }) {
     campaign: <><rect x="4" y="4" width="16" height="16" rx="3" /><path d="m7 16 3.5-4 3 3 2-2 2.5 3" /></>,
     analytics: <><path d="M4 19V9" /><path d="M10 19V5" /><path d="M16 19v-7" /><path d="M22 19H2" /></>,
     billing: <><rect x="3" y="5" width="18" height="14" rx="3" /><path d="M3 10h18" /></>,
+    gift: <><rect x="3" y="9" width="18" height="12" rx="2" /><path d="M12 9v12M3 13h18M7.5 9C5 9 4 7.8 4 6.5S5 4 6.5 4C9 4 12 9 12 9M16.5 9C19 9 20 7.8 20 6.5S19 4 17.5 4C15 4 12 9 12 9" /></>,
     settings: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" /></>,
     users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" /></>,
     plans: <><path d="M6 3h12l3 5-9 13L3 8l3-5Z" /><path d="M3 8h18M9 3l-2 5 5 13 5-13-2-5" /></>,
@@ -61,6 +63,7 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
   const router = useRouter();
   const [loggingOut, setLoggingOut] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [creditBalance, setCreditBalance] = useState(profile?.token_balance ?? 0);
   const links = area === "admin" ? adminLinks : dashboardLinks;
   const displayName = profile?.display_name || "Afflio user";
   const activeLabel = links.find((link) => router.pathname === link.href)?.label || title;
@@ -68,6 +71,16 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
   useEffect(() => {
     setMenuOpen(false);
   }, [router.asPath]);
+
+  useEffect(() => {
+    setCreditBalance(profile?.token_balance ?? 0);
+  }, [profile?.token_balance]);
+
+  useEffect(() => {
+    const updateCredits = (event: Event) => setCreditBalance((event as CustomEvent<number>).detail);
+    window.addEventListener("afflio:credits", updateCredits);
+    return () => window.removeEventListener("afflio:credits", updateCredits);
+  }, []);
 
   useEffect(() => {
     document.body.classList.toggle("app-menu-open", menuOpen);
@@ -127,18 +140,18 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
         </nav>
 
         <div className="app-sidebar__footer">
-          {area === "dashboard" && profile && profile.token_balance <= 5 ? (
+          {area === "dashboard" && profile && creditBalance <= 5 ? (
             <div className="upgrade-nudge">
               <span className="upgrade-nudge__label">Running low</span>
               <p>
-                {profile.token_balance} credit{profile.token_balance === 1 ? "" : "s"} left — each
+                {creditBalance} credit{creditBalance === 1 ? "" : "s"} left — each
                 new campaign card uses one.
               </p>
               <div className="token-meter">
                 <div
                   className="token-meter__fill"
-                  data-tone={profile.token_balance <= 2 ? "low" : undefined}
-                  style={{ width: `${Math.min(100, (profile.token_balance / 5) * 100)}%` }}
+                  data-tone={creditBalance <= 2 ? "low" : undefined}
+                  style={{ width: `${Math.min(100, (creditBalance / 5) * 100)}%` }}
                 />
               </div>
               <Link href="/dashboard/billing">Top up credits &rarr;</Link>
@@ -167,7 +180,7 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
             <span /><span /><span />
           </button>
           <Link className="app-mobilebar__brand" href={area === "admin" ? "/admin" : "/dashboard"}>AFFLIO <span>{area === "admin" ? "Admin" : "Workspace"}</span></Link>
-          <div className="app-mobilebar__avatar" aria-label={`${displayName}, ${profile?.token_balance ?? 0} credits`}>{displayName.charAt(0).toUpperCase()}</div>
+          <div className="app-mobilebar__avatar" aria-label={`${displayName}, ${creditBalance} credits`}>{displayName.charAt(0).toUpperCase()}</div>
         </div>
         <header className="app-topbar">
           <div className="app-topbar__copy">
@@ -184,7 +197,7 @@ export function AppShell({ area, title, subtitle, profile, children }: AppShellP
             </div>
             <div className="app-topbar__pill">
               <span>Credits</span>
-              <strong>{profile?.token_balance ?? 0}</strong>
+              <strong>{creditBalance}</strong>
             </div>
           </div>
         </header>

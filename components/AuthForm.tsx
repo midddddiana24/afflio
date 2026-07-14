@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { createClient } from "@/lib/supabase/client";
@@ -22,12 +22,19 @@ export function AuthForm({ mode }: AuthFormProps) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [referralCode, setReferralCode] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success">("idle");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
   const isSignup = mode === "signup";
   const nextPath = getNextPath(router.query.next);
+
+  useEffect(() => {
+    if (typeof router.query.ref === "string") {
+      setReferralCode(router.query.ref.trim().toLowerCase().slice(0, 32));
+    }
+  }, [router.query.ref]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -42,7 +49,7 @@ export function AuthForm({ mode }: AuthFormProps) {
         email,
         password,
         options: {
-          data: { full_name: fullName },
+          data: { full_name: fullName, referral_code: referralCode || undefined },
           emailRedirectTo: callbackUrl,
         },
       });
@@ -101,6 +108,20 @@ export function AuthForm({ mode }: AuthFormProps) {
                 placeholder="Juan Dela Cruz"
                 required
                 value={fullName}
+              />
+            </label>
+          ) : null}
+
+          {isSignup ? (
+            <label className="field">
+              <span>Friend referral code <small className="muted">(optional)</small></span>
+              <input
+                autoComplete="off"
+                maxLength={32}
+                name="referralCode"
+                onChange={(event) => setReferralCode(event.target.value.trim().toLowerCase())}
+                placeholder="Invite code"
+                value={referralCode}
               />
             </label>
           ) : null}

@@ -60,6 +60,7 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [creditDelta, setCreditDelta] = useState("5");
 
   async function load() {
     const supabase = createClient();
@@ -125,6 +126,7 @@ export default function AdminUsersPage() {
     role?: "client" | "admin";
     suspended?: boolean;
     suspensionReason?: string;
+    creditDelta?: number;
   }) {
     setBusyKey(input.userId);
 
@@ -271,6 +273,22 @@ export default function AdminUsersPage() {
                     {selectedUser.suspended_at ? "Reactivate user" : "Suspend user"}
                   </button>
                 </div>
+
+                <form
+                  className="admin-inline-section"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void updateUser({ userId: selectedUser.id, creditDelta: Number(creditDelta) });
+                  }}
+                >
+                  <h3>Adjust campaign credits</h3>
+                  <p className="muted">Use a positive number after a manual payment, or a negative number to correct a balance. Every change is logged.</p>
+                  <label className="field">
+                    <span>Credit adjustment</span>
+                    <input inputMode="numeric" max="10000" min="-10000" onChange={(event) => setCreditDelta(event.target.value)} required step="1" type="number" value={creditDelta} />
+                  </label>
+                  <button className="btn btn-fill" disabled={busyKey === selectedUser.id || !Number(creditDelta)} type="submit">Apply credits</button>
+                </form>
 
                 <div className="admin-inline-section">
                   <h3>Campaigns</h3>

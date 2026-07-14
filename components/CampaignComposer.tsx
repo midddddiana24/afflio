@@ -224,7 +224,7 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
       }),
     });
 
-    const payload = (await response.json()) as { error?: string; campaign?: CampaignRow };
+    const payload = (await response.json()) as { error?: string; campaign?: CampaignRow; remainingCredits?: number };
 
     if (!response.ok || !payload.campaign) {
       setSubmitting(false);
@@ -240,6 +240,9 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
     setHotspots([]);
     setSubmitting(false);
     setSuccess(`Campaign created. Test it at /c/${payload.campaign.slug}`);
+    if (typeof payload.remainingCredits === "number") {
+      window.dispatchEvent(new CustomEvent("afflio:credits", { detail: payload.remainingCredits }));
+    }
     await loadCampaigns();
   }
 
@@ -402,9 +405,15 @@ export function CampaignComposer({ profile }: CampaignComposerProps) {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ campaignId: campaign.id }),
     });
-    const payload = await response.json() as { error?: string };
+    const payload = await response.json() as { error?: string; remainingCredits?: number };
     if (!response.ok) setError(payload.error || "Failed to duplicate campaign.");
-    else { setSuccess("Campaign duplicated as a draft."); await loadCampaigns(); }
+    else {
+      setSuccess("Campaign duplicated as a draft.");
+      if (typeof payload.remainingCredits === "number") {
+        window.dispatchEvent(new CustomEvent("afflio:credits", { detail: payload.remainingCredits }));
+      }
+      await loadCampaigns();
+    }
     setBusyId("");
   }
 

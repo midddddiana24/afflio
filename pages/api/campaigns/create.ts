@@ -4,6 +4,7 @@ import { createPagesServerClient } from "@/lib/supabase/pages-server";
 import { createCampaignSlug, validateCampaignInput } from "@/lib/campaigns";
 import { getEffectivePlanForUser } from "@/lib/plans";
 import { toHotspotRows, validateHotspots } from "@/lib/hotspots";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 type ApiResponse =
   | { error: string }
@@ -19,6 +20,7 @@ type ApiResponse =
         status: string;
         created_at: string;
       };
+      remainingCredits: number;
     };
 
 export default async function handler(
@@ -112,9 +114,12 @@ export default async function handler(
     return res.status(500).json({ error: "Unable to generate a unique campaign slug." });
   }
 
-  const { data: campaign, error } = await supabase
+  const admin = createServiceRoleClient();
+  const campaignId = crypto.randomUUID();
+  const { data: campaign, error } = await admin
     .from("campaigns")
     .insert({
+      id: campaignId,
       user_id: user.id,
       slug,
       image_path: parsed.value.imagePath,
@@ -128,18 +133,30 @@ export default async function handler(
     .single();
 
   if (error || !campaign) {
+    await admin.storage.from("campaign-images").remove([parsed.value.imagePath]);
     return res.status(500).json({ error: error?.message || "Failed to create campaign." });
   }
 
   if (parsedHotspots.value.length) {
-    const { error: hotspotError } = await supabase
+    const { error: hotspotError } = await admin
       .from("campaign_hotspots")
       .insert(toHotspotRows(campaign.id, parsedHotspots.value));
     if (hotspotError) {
-      await supabase.from("campaigns").delete().eq("id", campaign.id).eq("user_id", user.id);
+      await admin.from("campaigns").delete().eq("id", campaign.id).eq("user_id", user.id);
+      await admin.storage.from("campaign-images").remove([parsed.value.imagePath]);
       return res.status(500).json({ error: hotspotError.message || "Failed to save campaign hotspots." });
     }
   }
 
-  return res.status(201).json({ campaign });
+  const { data: remainingCredits, error: creditError } = await admin.rpc("consume_campaign_credit", {
+    p_user_id: user.id,
+    p_campaign_id: campaign.id,
+  });
+  if (creditError) {
+    await admin.from("campaigns").delete().eq("id", campaign.id).eq("user_id", user.id);
+    await admin.storage.from("campaign-images").remove([parsed.value.imagePath]);
+    return res.status(402).json({ error: "You need at least 1 credit to create a campaign. Invite a friend or add credits first." });
+  }
+
+  return res.status(201).json({ campaign, remainingCredits: Number(remainingCredits) });
 }

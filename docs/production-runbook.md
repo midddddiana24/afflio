@@ -6,7 +6,7 @@ Do not enable paid checkout until every item below has an owner and a verified p
 
 ## Supabase
 
-1. Apply migrations `0001` through `0006` in order.
+1. Apply migrations `0001` through `0008` in order. Migration `0008` activates starter credits, campaign spending, and verified friend referrals.
 2. Add the production site URL and `/auth/callback`, `/reset-password` URLs under Authentication URL Configuration.
 3. Require email confirmation and configure a branded SMTP sender.
 4. Verify Row Level Security remains enabled on every public table.

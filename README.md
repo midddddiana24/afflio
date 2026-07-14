@@ -35,8 +35,8 @@ afflio/
    - `service_role` secret key (keep this one server-side only, ever)
 3. Copy `.env.example` to `.env.local` and fill in those three values, plus your project ref (the part before `.supabase.co`) as `SUPABASE_PROJECT_ID`.
 
-### 2. Run the migration
-Easiest path — paste the whole contents of `supabase/migrations/0001_init.sql` into the Supabase SQL Editor (Dashboard → SQL Editor → New query) and run it.
+### 2. Run the migrations
+Easiest path: paste and run every file in `supabase/migrations` in numeric order (`0001` through `0008`) using Supabase Dashboard → SQL Editor → New query.
 
 Or, if you have the Supabase CLI installed and linked to this project:
 ```bash
