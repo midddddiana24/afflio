@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from "react";
 import Head from "next/head";
+import Link from "next/link";
 import { AppShell } from "@/components/AppShell";
 import { useSessionContext } from "@/lib/use-session-context";
 
 type Referral = { id: string; friendName: string; status: string; referrer_reward: number; created_at: string };
 type Transaction = { id: string; amount: number; type: string; created_at: string };
-type ReferralData = { referralCode: string; tokenBalance: number; referrals: Referral[]; transactions: Transaction[] };
+type ReferralData = { referralEnabled: boolean; currentPlan: string; referralCode: string | null; tokenBalance: number; referrals: Referral[]; transactions: Transaction[] };
 
 export default function ReferralsPage() {
   const { loading: sessionLoading, profile, error: sessionError } = useSessionContext();
@@ -26,7 +27,7 @@ export default function ReferralsPage() {
       .catch((loadError: Error) => setError(loadError.message));
   }, [profile]);
 
-  const inviteUrl = data && typeof window !== "undefined"
+  const inviteUrl = data?.referralEnabled && data.referralCode && typeof window !== "undefined"
     ? `${window.location.origin}/signup?ref=${encodeURIComponent(data.referralCode)}`
     : "";
 
@@ -51,19 +52,18 @@ export default function ReferralsPage() {
   return (
     <>
       <Head><title>Refer friends | Afflio</title></Head>
-      <AppShell area="dashboard" profile={{ ...profile, token_balance: data?.tokenBalance ?? profile.token_balance }} title="Refer friends" subtitle="Invite verified friends and earn 5 campaign credits for each successful signup.">
+      <AppShell area="dashboard" profile={{ ...profile, token_balance: data?.tokenBalance ?? profile.token_balance }} title="Refer friends" subtitle="Friend referrals are available on active paid and trial plans.">
         {(sessionError || error) ? <section className="app-card"><p className="auth-message auth-message-error">{sessionError || error}</p></section> : null}
         <section className="referral-hero app-card">
           <div>
-            <p className="app-topbar__eyebrow">Your invite link</p>
-            <h2>Give 5 credits. Get 5 credits.</h2>
-            <p className="muted">Your friend must sign up through this link and verify their email. Rewards are issued once per new account.</p>
+            <p className="app-topbar__eyebrow">{data?.referralEnabled ? "Your invite link" : "Paid plan feature"}</p>
+            <h2>{data?.referralEnabled ? "Give 5 credits. Get 5 credits." : "Upgrade to unlock friend referrals."}</h2>
+            <p className="muted">{data?.referralEnabled ? "Your friend must sign up through this link and verify their email. Rewards are issued once per new account." : "Activate any paid or trial plan to generate your personal referral link and earn campaign credits from verified friends."}</p>
           </div>
           <div className="referral-link-box">
-            <code>{inviteUrl || "Loading invite link..."}</code>
+            <code>{data?.referralEnabled ? inviteUrl || "Loading invite link..." : "Referral link locked on Free"}</code>
             <div className="campaign-card__actions">
-              <button className="btn btn-fill" disabled={!inviteUrl} onClick={copyInvite} type="button">{copied ? "Copied" : "Copy link"}</button>
-              <button className="btn btn-outline" disabled={!inviteUrl} onClick={shareInvite} type="button">Share</button>
+              {data?.referralEnabled ? <><button className="btn btn-fill" disabled={!inviteUrl} onClick={copyInvite} type="button">{copied ? "Copied" : "Copy link"}</button><button className="btn btn-outline" disabled={!inviteUrl} onClick={shareInvite} type="button">Share</button></> : <Link className="btn btn-fill" href="/dashboard/billing">View upgrade plans</Link>}
             </div>
           </div>
         </section>
