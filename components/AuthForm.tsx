@@ -30,6 +30,10 @@ export function AuthForm({ mode }: AuthFormProps) {
   const isSignup = mode === "signup";
   const nextPath = getNextPath(router.query.next);
 
+  function getCallbackUrl() {
+    return `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
+  }
+
   useEffect(() => {
     if (typeof router.query.ref === "string") {
       setReferralCode(router.query.ref.trim().toLowerCase().slice(0, 32));
@@ -44,13 +48,12 @@ export function AuthForm({ mode }: AuthFormProps) {
     setNotice("");
 
     if (isSignup) {
-      const callbackUrl = `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`;
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: { full_name: fullName, referral_code: referralCode || undefined },
-          emailRedirectTo: callbackUrl,
+          emailRedirectTo: getCallbackUrl(),
         },
       });
 
@@ -82,6 +85,30 @@ export function AuthForm({ mode }: AuthFormProps) {
     }
 
     router.replace(nextPath);
+  }
+
+  async function resendSignupVerification() {
+    if (!email) {
+      setError("Enter the email address you used to sign up.");
+      return;
+    }
+
+    setStatus("loading");
+    setError("");
+    const { error: resendError } = await createClient().auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: getCallbackUrl() },
+    });
+
+    if (resendError) {
+      setStatus("success");
+      setError(resendError.message);
+      return;
+    }
+
+    setStatus("success");
+    setNotice("A fresh verification email was sent. Use only the newest link.");
   }
 
   return (
@@ -161,6 +188,12 @@ export function AuthForm({ mode }: AuthFormProps) {
 
           {notice ? <p className="auth-message auth-message-success">{notice}</p> : null}
           {error ? <p className="auth-message auth-message-error">{error}</p> : null}
+
+          {isSignup && (status === "success" || router.query.verification === "expired") ? (
+            <button className="btn btn-outline" disabled={status === "loading" || !email} onClick={resendSignupVerification} type="button">
+              {status === "loading" ? "Sending..." : "Resend verification email"}
+            </button>
+          ) : null}
 
           <button className="btn btn-fill auth-submit" data-state={status} type="submit">
             <span className="spinner" />

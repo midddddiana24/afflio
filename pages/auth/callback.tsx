@@ -15,6 +15,18 @@ export default function AuthCallbackPage() {
       return;
     }
 
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const authError =
+      (typeof router.query.error_description === "string" ? router.query.error_description : "") ||
+      hashParams.get("error_description") ||
+      (typeof router.query.error === "string" ? router.query.error : "") ||
+      hashParams.get("error");
+
+    if (authError) {
+      setError(authError.replaceAll("+", " "));
+      return;
+    }
+
     const codeParam = router.query.code;
     const nextPath =
       typeof router.query.next === "string" && router.query.next.startsWith("/")
@@ -58,8 +70,8 @@ export default function AuthCallbackPage() {
               {error || "We are finishing the secure sign-in handshake with Supabase."}
             </p>
             {error ? (
-              <Link className="btn btn-outline" href="/login?confirmed=1">
-                Back to login
+              <Link className="btn btn-outline" href="/signup?verification=expired">
+                Request a new verification email
               </Link>
             ) : null}
           </div>

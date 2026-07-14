@@ -7,7 +7,7 @@ Do not enable paid checkout until every item below has an owner and a verified p
 ## Supabase
 
 1. Apply migrations `0001` through `0009` in order. Migration `0008` activates credits and referrals; `0009` limits referral links and rewards to paid/trial plans.
-2. Add the production site URL and `/auth/callback`, `/reset-password` URLs under Authentication URL Configuration.
+2. Under Authentication > URL Configuration, set Site URL to the real production origin and allow `<origin>/auth/callback**` plus `<origin>/reset-password**`. Never leave `your-project.vercel.app` as a placeholder.
 3. Require email confirmation and configure a branded SMTP sender.
 4. Verify Row Level Security remains enabled on every public table.
 5. Enable daily backups or Point-in-Time Recovery for the selected Supabase plan.
